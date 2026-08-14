@@ -29,8 +29,6 @@ const state = {
   excludedModules: {},
   exportMaps: {},
   externalTargets: {},
-  preRecordingBlockStarts: [],
-  preRecordingBlockMap: {},
   ready: false,
   recording: false,
   recordThreadId: null,
@@ -437,37 +435,6 @@ function putTraceCallout(iterator, instruction, blockStart) {
   return observeAfter;
 }
 
-function rememberPreRecordingBlock(blockStart) {
-  const key = ptrHex(blockStart);
-  if (state.preRecordingBlockMap[key]) {
-    return;
-  }
-
-  state.preRecordingBlockMap[key] = true;
-  state.preRecordingBlockStarts.push(blockStart);
-}
-
-function invalidatePreRecordingBlocks() {
-  const tids = Object.keys(state.followed);
-  if (tids.length === 0 || state.preRecordingBlockStarts.length === 0) {
-    return;
-  }
-
-  for (const tidText of tids) {
-    const tid = parseInt(tidText, 10);
-    for (const blockStart of state.preRecordingBlockStarts) {
-      try {
-        Stalker.invalidate(tid, blockStart);
-      } catch (_) {
-      }
-    }
-  }
-
-  send({ type: 'invalidated-pre-recording-blocks', count: state.preRecordingBlockStarts.length });
-  state.preRecordingBlockStarts = [];
-  state.preRecordingBlockMap = {};
-}
-
 function followThread(thread, fromCurrentThread) {
   if (!state.ready || state.done || !shouldFollowThread(thread)) {
     return;
@@ -487,31 +454,12 @@ function followThread(thread, fromCurrentThread) {
         }
 
         const blockStart = instruction.address;
-        let sawTargetInstruction = false;
-        let emitCallouts = state.recording;
-
         while (instruction !== null) {
           const address = instruction.address;
 
-          const startHere = isStartAddress(address);
           const recordHere = shouldRecordAddress(address);
           if (recordHere) {
-            sawTargetInstruction = true;
-
-            if (state.deferExclusions && isTargetAddress(address)) {
-              iterator.putCallout(function () {
-                activateDeferredExclusions();
-              });
-            }
-
-            if (!emitCallouts && startHere) {
-              emitCallouts = true;
-            }
-
-            let observeAfter = false;
-            if (emitCallouts) {
-              observeAfter = putTraceCallout(iterator, instruction, blockStart);
-            }
+            const observeAfter = putTraceCallout(iterator, instruction, blockStart);
 
             iterator.keep();
             if (observeAfter) {
@@ -524,10 +472,6 @@ function followThread(thread, fromCurrentThread) {
             iterator.keep();
           }
           instruction = iterator.next();
-        }
-
-        if (sawTargetInstruction && !state.recording) {
-          rememberPreRecordingBlock(blockStart);
         }
       }
     };
@@ -787,7 +731,6 @@ function onInstruction(address, size, bytes, text, transfer, instructionState, s
 
     state.recording = true;
     state.recordThreadId = tid;
-    invalidatePreRecordingBlocks();
     send({
       type: 'recording-started',
       threadId: tid,
@@ -892,8 +835,8 @@ rpc.exports = {
     state.threadId = config.threadId === undefined ? null : config.threadId;
     state.gateAddress = config.gateAddress ? ptr(config.gateAddress) : null;
     state.recording = false;
-    state.deferExclusions = state.targetOnly;
-    state.excludeNonTargetModules = false;
+    state.deferExclusions = false;
+    state.excludeNonTargetModules = state.targetOnly;
     state.flushEvery = config.flushEvery || 256;
 
     if (!state.moduleName) {

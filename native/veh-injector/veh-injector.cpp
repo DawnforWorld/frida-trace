@@ -21,9 +21,13 @@ struct Options
     std::wstring stopModule;
     std::wstring out;
     std::wstring cwd;
+    std::wstring triggerModule;
+    std::wstring triggerSymbol;
     std::vector< std::wstring > targetArgs;
     uint64_t startRva = 0;
     uint64_t endRva = 0;
+    uint64_t triggerRva = 0;
+    bool hasTriggerRva = false;
     int targetOnly = 1;
     DWORD flushEvery = 1024;
     DWORD hitTimeoutMs = 60000;
@@ -61,12 +65,14 @@ void PrintUsage()
     std::fwprintf(stderr,
         L"Usage: veh-injector --exe <path> [--dll <path>] [--frida <path>] "
         L"[--module <name>] [--start-rva <rva>] [--end-rva <rva>] [--out <path>] "
+        L"[--trigger-module <name>] [--trigger-symbol <name>] [--trigger-rva <rva>] "
         L"[--start-module <name>] [--stop-module <name>] [--target-only 0|1] "
         L"[--cwd <path>] [--hit-timeout-ms <ms>] [--ready-timeout-ms <ms>] "
         L"[--trace-timeout-ms <ms>] [-- <target args>]\n");
 }
 
 std::filesystem::path RepositoryRoot();
+std::wstring Hex(uint64_t value);
 
 bool ParseUnsigned(const wchar_t* text, uint64_t* value)
 {
@@ -110,6 +116,13 @@ bool ParseOptions(int argc, wchar_t** argv, Options* options)
             options->flushEvery = parsed == 0 ? 16384 : static_cast<DWORD>(parsed);
         }
         else if (arg == L"--cwd") options->cwd = value;
+        else if (arg == L"--trigger-module") options->triggerModule = value;
+        else if (arg == L"--trigger-symbol") options->triggerSymbol = value;
+        else if (arg == L"--trigger-rva")
+        {
+            if (!ParseUnsigned(value, &options->triggerRva)) return false;
+            options->hasTriggerRva = true;
+        }
         else if (arg == L"--start-rva")
         {
             if (!ParseUnsigned(value, &options->startRva)) return false;
@@ -206,6 +219,51 @@ std::wstring BuildTargetCommand(const Options& options)
         command += Quote(arg);
     }
     return command;
+}
+
+std::vector<wchar_t> BuildEnvironmentBlock(const Options& options)
+{
+    std::vector<wchar_t> block;
+    wchar_t* environment = GetEnvironmentStringsW();
+    if (environment != nullptr)
+    {
+        for (const wchar_t* p = environment; *p != L'\0'; p += std::wcslen(p) + 1)
+        {
+            const wchar_t* equals = std::wcschr(p, L'=');
+            const bool isTriggerVar = equals != nullptr &&
+                _wcsnicmp(p, L"FRIDA_TRACE_TRIGGER_", 20) == 0;
+            if (isTriggerVar)
+                continue;
+
+            const size_t len = std::wcslen(p) + 1;
+            block.insert(block.end(), p, p + len);
+        }
+        FreeEnvironmentStringsW(environment);
+    }
+
+    if (!options.triggerModule.empty())
+    {
+        const std::wstring moduleVar = L"FRIDA_TRACE_TRIGGER_MODULE=" + options.triggerModule;
+        block.insert(block.end(), moduleVar.begin(), moduleVar.end());
+        block.push_back(L'\0');
+    }
+
+    if (options.hasTriggerRva)
+    {
+        const std::wstring rvaVar = L"FRIDA_TRACE_TRIGGER_RVA=" + Hex(options.triggerRva);
+        block.insert(block.end(), rvaVar.begin(), rvaVar.end());
+        block.push_back(L'\0');
+    }
+
+    if (!options.triggerSymbol.empty())
+    {
+        const std::wstring symbolVar = L"FRIDA_TRACE_TRIGGER_SYMBOL=" + options.triggerSymbol;
+        block.insert(block.end(), symbolVar.begin(), symbolVar.end());
+        block.push_back(L'\0');
+    }
+
+    block.push_back(L'\0');
+    return block;
 }
 
 bool InjectDll(HANDLE process, const std::wstring& dllPath)
@@ -349,9 +407,11 @@ int wmain(int argc, wchar_t** argv)
     std::wstring targetCommand = BuildTargetCommand(options);
     std::vector< wchar_t > targetBuffer(targetCommand.begin(), targetCommand.end());
     targetBuffer.push_back(L'\0');
+    std::vector< wchar_t > environment = BuildEnvironmentBlock(options);
 
     if (!CreateProcessW(options.exe.c_str(), targetBuffer.data(), 0, 0, FALSE,
-                        CREATE_SUSPENDED | CREATE_NEW_CONSOLE, 0, options.cwd.c_str(),
+                        CREATE_SUSPENDED | CREATE_NEW_CONSOLE | CREATE_UNICODE_ENVIRONMENT,
+                        environment.data(), options.cwd.c_str(),
                         &startup, &handles.process))
     {
         std::fwprintf(stderr, L"CreateProcessW failed: %lu\n", GetLastError());
@@ -359,6 +419,7 @@ int wmain(int argc, wchar_t** argv)
     }
 
     std::wprintf(L"created suspended target: pid=%lu\n", handles.process.dwProcessId);
+
     const std::wstring hitEventName = L"Local\\InjectVehHit_" +
                                       std::to_wstring(handles.process.dwProcessId);
     const std::wstring readyEventName = L"Local\\InjectVehFridaReady_" +

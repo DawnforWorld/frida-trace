@@ -5,6 +5,7 @@
 
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 
 namespace
 {
@@ -35,6 +36,16 @@ bool ChangeByte(uint64_t address, uint8_t value, uint8_t* previous)
     DWORD unused = 0;
     const BOOL restored = VirtualProtect(location, 1, oldProtection, &unused);
     return restored != FALSE;
+}
+
+bool ParseUnsigned(const char* text, uint64_t* value)
+{
+    if (text == nullptr || *text == '\0') return false;
+    char* end = nullptr;
+    const unsigned long long parsed = std::strtoull(text, &end, 0);
+    if (text == end || *end != '\0') return false;
+    *value = static_cast<uint64_t>(parsed);
+    return true;
 }
 
 bool RestoreBreakpoint()
@@ -157,6 +168,27 @@ bool ArmConfiguredExport()
     return true;
 }
 
+bool ArmConfiguredRva()
+{
+    char moduleName[MAX_PATH] = "";
+    char rvaText[64] = "";
+    if (GetEnvironmentVariableA("FRIDA_TRACE_TRIGGER_MODULE", moduleName, MAX_PATH) == 0)
+        return false;
+    if (GetEnvironmentVariableA("FRIDA_TRACE_TRIGGER_RVA", rvaText, sizeof(rvaText)) == 0)
+        return false;
+
+    uint64_t triggerRva = 0;
+    if (!ParseUnsigned(rvaText, &triggerRva)) return false;
+
+    HMODULE module = GetModuleHandleA(moduleName);
+    if (module == nullptr) return false;
+
+    gBreakpointAddress = reinterpret_cast<uintptr_t>(module) + triggerRva;
+    if (!ChangeByte(gBreakpointAddress, 0xcc, &gOriginalByte)) return false;
+    InterlockedExchange(&gArmed, TRUE);
+    return true;
+}
+
 void Cleanup()
 {
     RestoreBreakpoint();
@@ -176,7 +208,7 @@ BOOL APIENTRY DllMain(HMODULE module, DWORD reason, LPVOID)
         SuspendOtherThreads();
         const bool ready = CreateSynchronizationObjects();
         gVeh = AddVectoredExceptionHandler(1, VehHandler);
-        const bool armed = ready && gVeh != nullptr && ArmConfiguredExport();
+        const bool armed = ready && gVeh != nullptr && (ArmConfiguredRva() || ArmConfiguredExport());
         ResumeOtherThreads();
         return armed ? TRUE : FALSE;
     }
