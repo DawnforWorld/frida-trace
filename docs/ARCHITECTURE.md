@@ -2,6 +2,8 @@
 
 本文描述 `frida-instr-trace` 当前实现的组件边界、启动时序、线程交接、指令采集和文本输出。项目只支持 native launcher 启动方式，只生成开源 unidbg `AssemblyCodeDumper` 风格文本。
 
+面向日常使用和失败定位的说明见 [README](../README.md) 和 [排障指南](TROUBLESHOOTING.md)。
+
 ## 总体架构
 
 ```text
@@ -58,18 +60,19 @@ Launcher 不解析指令，也不写 trace 内容。
 
 - 创建命名事件和共享内存。
 - 安装 vectored exception handler。
-- 解析触发模块和导出函数。
-- 保存触发函数首字节并写入 `0xCC` 软件断点。
+- 解析触发模块、导出函数或模块内 RVA。
+- 保存触发地址首字节并写入 `0xCC` 软件断点。
 - 断点命中后恢复原字节和 `RIP`。
 - 保存命中线程 ID 与断点地址。
 - 暂停其他目标线程，等待 Frida 完成 Stalker 初始化。
 - 收到 ready 事件后恢复其他线程并继续执行原指令。
 
-默认触发点为 `ucrtbase.dll!__p___argv`，可以通过以下环境变量覆盖：
+默认触发点为 `ucrtbase.dll!__p___argv`，也支持 `--trigger-module` / `--trigger-symbol` 或 `--trigger-rva` 覆盖：
 
 ```text
 FRIDA_TRACE_TRIGGER_MODULE
 FRIDA_TRACE_TRIGGER_SYMBOL
+FRIDA_TRACE_TRIGGER_RVA
 ```
 
 触发模块和符号必须在 DLL 注入时已经可解析，否则远程 `LoadLibraryW` 会失败。
