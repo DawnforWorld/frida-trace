@@ -22,10 +22,10 @@ Windows x64 指令级 RVA 跟踪工具。Native launcher 挂起启动目标、�
 ## 环境要求
 
 - Windows x64
-- Python 3.12+
+- Python 3.14+
 - [uv](https://docs.astral.sh/uv/)
 - Visual Studio 2022 C++ x64 工具链，包含 MSBuild
-- 本机可用的 Frida runtime，依赖由 `uv sync` 安装
+- 本机可用的 Frida runtime，依赖由 `uv sync` 安装；Triton 使用仓库内置 Windows x64 Python 3.14 wheel
 
 ## 安装与构建
 

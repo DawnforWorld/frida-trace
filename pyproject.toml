@@ -3,13 +3,17 @@ name = "frida-instr-trace"
 version = "0.1.0"
 description = "Instruction-level Frida Stalker tracing between two module RVAs"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.14"
 dependencies = [
     "frida>=17.17.0",
+    "triton-library",
 ]
 
 [dependency-groups]
 dev = ["pytest>=9.0.0"]
+
+[tool.uv.sources]
+triton-library = { path = "vendor/triton_library-1.0.0rc4-cp314-cp314-win_amd64.whl" }
 
 [project.scripts]
 frida-rva-trace = "frida_instr_trace.cli:main"
