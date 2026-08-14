@@ -11,3 +11,9 @@ dist/
 native/**/x64/
 
 traces/
+
+.opencode/skills/**/.runtime/
+.opencode/skills/**/_toolchain_stage/
+.opencode/skills/**/__pycache__/
+.opencode/skills/**/*.py[cod]
+.opencode/skills/**/pin.log

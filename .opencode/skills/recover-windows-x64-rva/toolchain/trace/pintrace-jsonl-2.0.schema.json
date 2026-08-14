@@ -1,0 +1,226 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:pintrace-jsonl:2.0",
+  "title": "PinTrace JSONL record 2.0",
+  "oneOf": [
+    { "$ref": "#/$defs/metadata" },
+    { "$ref": "#/$defs/instruction" },
+    { "$ref": "#/$defs/summary" }
+  ],
+  "$defs": {
+    "address": {
+      "type": "string",
+      "pattern": "^0x[0-9a-f]{16}$"
+    },
+    "hexBytes": {
+      "type": "string",
+      "pattern": "^(?:[0-9a-f]{2})*$"
+    },
+    "registers": {
+      "type": "object",
+      "required": ["rax", "rbx", "rcx", "rdx", "rsi", "rdi", "rbp", "rsp", "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15", "rflags", "fs_base", "gs_base"]
+    },
+    "extendedRegs": {
+          "type": "object",
+          "required": ["mxcsr", "xmm"],
+          "properties": {
+            "mxcsr": { "$ref": "#/$defs/address" },
+            "xmm": {
+              "type": "object",
+              "required": ["xmm0", "xmm1", "xmm2", "xmm3", "xmm4", "xmm5", "xmm6", "xmm7", "xmm8", "xmm9", "xmm10", "xmm11", "xmm12", "xmm13", "xmm14", "xmm15"],
+              "properties": {
+                "xmm0": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+                "xmm1": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+                "xmm2": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+                "xmm3": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+                "xmm4": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+                "xmm5": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+                "xmm6": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+                "xmm7": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+                "xmm8": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+                "xmm9": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+                "xmm10": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+                "xmm11": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+                "xmm12": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+                "xmm13": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+                "xmm14": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+                "xmm15": { "type": "string", "pattern": "^[0-9a-f]{32}$" }
+              }
+            }
+          }
+    },
+    "nullableExtendedRegs": {
+      "oneOf": [
+        { "$ref": "#/$defs/extendedRegs" },
+        { "type": "null" }
+      ]
+    },
+    "rflagsSemantics": {
+      "type": "object",
+      "required": ["read_mask", "written_mask", "undefined_mask"],
+      "properties": {
+        "read_mask": { "$ref": "#/$defs/address" },
+        "written_mask": { "$ref": "#/$defs/address" },
+        "undefined_mask": { "$ref": "#/$defs/address" }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "required": ["schema", "type", "arch", "endianness", "pid", "module", "selection", "capture"],
+      "properties": {
+        "schema": { "const": "pintrace-jsonl/2.0" },
+        "type": { "const": "metadata" },
+        "arch": { "const": "x86_64" },
+        "endianness": { "const": "little" },
+        "pid": { "type": "integer", "minimum": 0 },
+        "module": {
+          "type": "object",
+          "required": ["path", "base", "high"],
+          "properties": {
+            "path": { "type": "string" },
+            "name": { "type": "string" },
+            "base": { "$ref": "#/$defs/address" },
+            "high": { "$ref": "#/$defs/address" },
+            "target_is_main_executable": { "type": "boolean" }
+          }
+        },
+        "selection": {
+          "type": "object",
+          "required": ["start_rva", "end_rva", "once"],
+          "properties": {
+            "requested_module": { "type": "string" },
+            "resolved_module": { "type": "string" },
+            "start_rva": { "$ref": "#/$defs/address" },
+            "end_rva": { "$ref": "#/$defs/address" },
+            "once": { "type": "boolean" }
+          }
+        },
+        "capture": {
+          "type": "object",
+          "required": ["registers", "memory_before", "memory_after", "memory_byte_order", "max_memory_bytes", "post_registers", "extended_registers", "extended_register_set", "rflags_semantics"],
+          "properties": {
+            "registers": { "enum": ["pre", "pre+post"] },
+            "memory_before": { "const": "pre" },
+            "memory_after": { "const": "post" },
+            "memory_byte_order": { "const": "increasing-address" },
+            "max_memory_bytes": { "type": "integer", "minimum": 1, "maximum": 256 },
+            "post_registers": { "const": true },
+            "extended_registers": { "const": true },
+            "extended_register_set": { "enum": ["xmm0-xmm15+mxcsr"] },
+            "rflags_semantics": { "const": "xed-read+written+undefined-masks" }
+          }
+        }
+      }
+    },
+    "memory": {
+      "type": "object",
+      "required": ["operand", "addr", "region", "rva", "size", "access", "before", "before_captured", "truncated"],
+      "properties": {
+        "operand": { "type": "integer", "minimum": 0 },
+        "addr": { "$ref": "#/$defs/address" },
+        "region": { "enum": ["main", "other"] },
+        "rva": {
+          "oneOf": [
+            { "$ref": "#/$defs/address" },
+            { "type": "null" }
+          ]
+        },
+        "size": { "type": "integer", "minimum": 0 },
+        "access": { "enum": ["r", "w", "rw"] },
+        "before": { "$ref": "#/$defs/hexBytes" },
+        "before_captured": { "type": "integer", "minimum": 0, "maximum": 256 },
+        "after": {
+          "oneOf": [
+            { "$ref": "#/$defs/hexBytes" },
+            { "type": "null" }
+          ]
+        },
+        "after_captured": { "type": "integer", "minimum": 0, "maximum": 256 },
+        "truncated": { "type": "boolean" }
+      }
+    },
+    "external": {
+      "type": "object",
+      "required": ["module", "symbol"],
+      "properties": {
+        "module": { "type": "string" },
+        "symbol": { "type": "string" }
+      }
+    },
+    "flow": {
+      "type": "object",
+      "required": ["kind", "taken", "next", "next_rva", "direct_target", "post_state", "external"],
+      "properties": {
+        "kind": { "enum": ["fallthrough", "branch", "jump", "call", "return", "syscall"] },
+        "taken": { "type": ["boolean", "null"] },
+        "next": { "$ref": "#/$defs/address" },
+        "next_rva": {
+          "oneOf": [
+            { "$ref": "#/$defs/address" },
+            { "type": "null" }
+          ]
+        },
+        "direct_target": {
+          "oneOf": [
+            { "$ref": "#/$defs/address" },
+            { "type": "null" }
+          ]
+        },
+        "post_state": { "type": "boolean" },
+        "external": {
+          "oneOf": [
+            { "$ref": "#/$defs/external" },
+            { "type": "null" }
+          ]
+        }
+      }
+    },
+    "instruction": {
+      "type": "object",
+      "required": ["schema", "type", "seq", "tid", "thread_seq", "addr", "rva", "size", "bytes", "mnemonic", "category", "disasm", "rflags_semantics", "sync", "regs", "extended_regs", "post_regs", "post_extended_regs", "memory", "memory_dropped", "flow"],
+      "properties": {
+        "schema": { "const": "pintrace-jsonl/2.0" },
+        "type": { "const": "instruction" },
+        "seq": { "type": "integer", "minimum": 1 },
+        "tid": { "type": "integer", "minimum": 0 },
+        "thread_seq": { "type": "integer", "minimum": 1 },
+        "addr": { "$ref": "#/$defs/address" },
+        "rva": { "$ref": "#/$defs/address" },
+        "size": { "type": "integer", "minimum": 1, "maximum": 15 },
+        "bytes": { "$ref": "#/$defs/hexBytes" },
+        "mnemonic": { "type": "string" },
+        "category": { "type": "string" },
+        "disasm": { "type": "string" },
+        "rflags_semantics": { "$ref": "#/$defs/rflagsSemantics" },
+        "sync": { "enum": ["trace_start", "external_return", null] },
+        "regs": { "$ref": "#/$defs/registers" },
+        "extended_regs": { "$ref": "#/$defs/extendedRegs" },
+        "post_regs": {
+          "oneOf": [
+            { "$ref": "#/$defs/registers" },
+            { "type": "null" }
+          ]
+        },
+        "post_extended_regs": { "$ref": "#/$defs/nullableExtendedRegs" },
+        "memory": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/memory" }
+        },
+        "memory_dropped": { "type": "integer", "minimum": 0 },
+        "flow": { "$ref": "#/$defs/flow" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "required": ["schema", "type", "exit_code", "instructions", "threads", "memory_accesses_dropped"],
+      "properties": {
+        "schema": { "const": "pintrace-jsonl/2.0" },
+        "type": { "const": "summary" },
+        "exit_code": { "type": "integer" },
+        "instructions": { "type": "integer", "minimum": 0 },
+        "threads": { "type": "integer", "minimum": 0 },
+        "memory_accesses_dropped": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

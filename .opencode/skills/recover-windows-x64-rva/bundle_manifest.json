@@ -1,0 +1,109 @@
+{
+  "schema": "rva-recovery-offline-bundle/1.0",
+  "created_utc": "2026-08-05T07:12:02.230444+00:00",
+  "skill_root": "C:\\Users\\crack\\.codex\\skills\\recover-windows-x64-rva",
+  "bundle_name": "recover-windows-x64-rva",
+  "bundle_type": "zip",
+  "generic_skill_entries": [
+    {
+      "name": "SKILL.md",
+      "source": "C:\\Users\\crack\\.codex\\skills\\recover-windows-x64-rva\\SKILL.md",
+      "destination": "C:\\Users\\crack\\AppData\\Local\\Temp\\recover-windows-x64-rva-bundle-to45fnmf\\recover-windows-x64-rva\\SKILL.md",
+      "kind": "file",
+      "sha256": "47889D4D0EC10F8A60108FAFC385A295B0A97C23CEE4692969CA8A03172D912F",
+      "copied_files": 1
+    },
+    {
+      "name": "agents",
+      "source": "C:\\Users\\crack\\.codex\\skills\\recover-windows-x64-rva\\agents",
+      "destination": "C:\\Users\\crack\\AppData\\Local\\Temp\\recover-windows-x64-rva-bundle-to45fnmf\\recover-windows-x64-rva\\agents",
+      "kind": "directory",
+      "sha256": null,
+      "copied_files": 1
+    },
+    {
+      "name": "references",
+      "source": "C:\\Users\\crack\\.codex\\skills\\recover-windows-x64-rva\\references",
+      "destination": "C:\\Users\\crack\\AppData\\Local\\Temp\\recover-windows-x64-rva-bundle-to45fnmf\\recover-windows-x64-rva\\references",
+      "kind": "directory",
+      "sha256": null,
+      "copied_files": 13
+    },
+    {
+      "name": "runtime",
+      "source": "C:\\Users\\crack\\.codex\\skills\\recover-windows-x64-rva\\runtime",
+      "destination": "C:\\Users\\crack\\AppData\\Local\\Temp\\recover-windows-x64-rva-bundle-to45fnmf\\recover-windows-x64-rva\\runtime",
+      "kind": "directory",
+      "sha256": null,
+      "copied_files": 9
+    },
+    {
+      "name": "scripts",
+      "source": "C:\\Users\\crack\\.codex\\skills\\recover-windows-x64-rva\\scripts",
+      "destination": "C:\\Users\\crack\\AppData\\Local\\Temp\\recover-windows-x64-rva-bundle-to45fnmf\\recover-windows-x64-rva\\scripts",
+      "kind": "directory",
+      "sha256": null,
+      "copied_files": 13
+    },
+    {
+      "name": "templates",
+      "source": "C:\\Users\\crack\\.codex\\skills\\recover-windows-x64-rva\\templates",
+      "destination": "C:\\Users\\crack\\AppData\\Local\\Temp\\recover-windows-x64-rva-bundle-to45fnmf\\recover-windows-x64-rva\\templates",
+      "kind": "directory",
+      "sha256": null,
+      "copied_files": 2
+    },
+    {
+      "name": "tests",
+      "source": "C:\\Users\\crack\\.codex\\skills\\recover-windows-x64-rva\\tests",
+      "destination": "C:\\Users\\crack\\AppData\\Local\\Temp\\recover-windows-x64-rva-bundle-to45fnmf\\recover-windows-x64-rva\\tests",
+      "kind": "directory",
+      "sha256": null,
+      "copied_files": 4
+    },
+    {
+      "name": "vendor",
+      "source": "C:\\Users\\crack\\.codex\\skills\\recover-windows-x64-rva\\vendor",
+      "destination": "C:\\Users\\crack\\AppData\\Local\\Temp\\recover-windows-x64-rva-bundle-to45fnmf\\recover-windows-x64-rva\\vendor",
+      "kind": "directory",
+      "sha256": null,
+      "copied_files": 4
+    },
+    {
+      "name": ".runtime",
+      "source": "C:\\Users\\crack\\.codex\\skills\\recover-windows-x64-rva\\.runtime",
+      "destination": "C:\\Users\\crack\\AppData\\Local\\Temp\\recover-windows-x64-rva-bundle-to45fnmf\\recover-windows-x64-rva\\.runtime",
+      "kind": "directory",
+      "sha256": null,
+      "copied_files": 976
+    }
+  ],
+  "toolchain_entries": [
+    {
+      "label": "pin_root",
+      "source": "C:\\project\\vmp\\dump\\vmp_v8_满血_instance10\\VMP_Offline_Recovery_Kit_20260803_FINAL\\runtime\\pin",
+      "destination": "C:\\Users\\crack\\AppData\\Local\\Temp\\recover-windows-x64-rva-bundle-to45fnmf\\recover-windows-x64-rva\\toolchain\\pin",
+      "kind": "directory",
+      "file_count": 4810
+    },
+    {
+      "label": "pin_tool",
+      "source": "C:\\project\\vmp\\dump\\vmp_v8_满血_instance10\\VMP_Offline_Recovery_Kit_20260803_FINAL\\tools\\tracer\\MyPinTool.dll",
+      "destination": "C:\\Users\\crack\\AppData\\Local\\Temp\\recover-windows-x64-rva-bundle-to45fnmf\\recover-windows-x64-rva\\toolchain\\pin-tool\\MyPinTool.dll",
+      "kind": "file",
+      "sha256": "361407406A5F6301A26B1A215A4253D704DB68C285CA61851141AC21E62B4754"
+    },
+    {
+      "label": "trace_root",
+      "source": "C:\\project\\vmp\\dump\\vmp_v8_满血_instance10\\VMP_Offline_Recovery_Kit_20260803_FINAL\\tools\\tracer",
+      "destination": "C:\\Users\\crack\\AppData\\Local\\Temp\\recover-windows-x64-rva-bundle-to45fnmf\\recover-windows-x64-rva\\toolchain\\trace",
+      "kind": "directory",
+      "file_count": 5
+    }
+  ],
+  "notes": [
+    "Source code is excluded from the bundle by design.",
+    "Trace/probe artifacts are sample-specific and should be kept outside the bundle.",
+    "Pin and trace helpers are included by default from the validated local roots when available."
+  ]
+}
