@@ -1,4 +1,0 @@
-interface:
-  display_name: "Windows x64 RVA Recovery"
-  short_description: "Binary-only RVA recovery with multi-trace Triton proof"
-  default_prompt: "Use $recover-windows-x64-rva to recover an authorized x64 RVA window from the EXE/DLL and runtime traces only, using the fixed offline toolchain inside the skill, cheap ABI input exploration, prompt-gated handling for interactive self-decrypting LoadLibrary/DllMain DLLs, optional Frida module/export/byte observation, focused Pin/debugger/Triton proof, AI-driven multi-path coverage, and mandatory evidence-mapped C++ delivery without compiler lookup or candidate compilation. Treat any source code as validation-only, never as recovery evidence."
