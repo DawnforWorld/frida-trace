@@ -21,11 +21,13 @@ Field interpretation:
 
 Evidence limits:
 
-- Memory values are not recorded.
+- Memory values are not printed as a separate field. Many are nevertheless uniquely recoverable from the decoded instruction and scalar register observations: destination post-state for loads, source pre-state for stores, or inversion of operations such as XOR/add/sub. Treat these as derived evidence and record the equation and width.
+- Memory-only comparisons, non-invertible operations, and vector accesses without a traceable scalar or memory definition do not reveal a unique value.
+- Apply [Derived Memory Recovery](derived-memory-recovery.md) before declaring a memory value unavailable.
 - Full scalar state for every register is not guaranteed.
 - Extended registers, x87, opmask, MXCSR, and exact floating-point state are not recorded.
 - Exact flags transitions are not guaranteed.
 - External target names are hints about control transfer, not API argument logs.
 - Absence of a register after `=>` does not prove the register was unchanged.
 
-Use this format for path reconstruction, branch/callee discovery, register-flow hypotheses, effective-address reasoning, and external target inventory. Claims depending on missing state must stay `hypothesis` or become explicit missing-trace requests.
+Use this format as the sole evidence input for path reconstruction, branch/callee discovery, register flow, effective-address reasoning, memory-value derivation, and external target inventory. Claims depending on missing state must stay `hypothesis` or become explicit missing-trace requests.

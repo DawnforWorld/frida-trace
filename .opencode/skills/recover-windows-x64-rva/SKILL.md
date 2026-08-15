@@ -1,117 +1,186 @@
 ---
 name: recover-windows-x64-rva
-description: "Recover authorized Windows x64 data-flow from one or more frida-instr-trace traces, authorized sample binaries, and Triton/angr-assisted taint/slicing for RVA windows, algorithms, branches, callees, failures, exceptions, inputs, outputs, and side effects. Use when native\\veh-injector / frida-rva-trace trace files or sample inputs are available and the goal is C++ reconstruction from trace families plus binary evidence."
+description: "Analyze authorized Windows x64 frida-instr-trace text files only: recover memory values from instruction/register pre-post state, identify sources and sinks, backward-slice data flow, and use detected Capstone/Triton/angr tooling only on bytes contained in the trace. Use when native\\veh-injector or frida-rva-trace text traces are supplied. The only persistent output is one professional Simplified Chinese Markdown data-flow report, including partial, blocked, and no-signal outcomes."
 ---
 
-# Recover Windows x64 RVA Logic
+# Trace-Only Windows x64 Data-Flow Report
 
-Work offline from supplied `frida-instr-trace` text traces and any authorized sample binaries or outputs provided by the user.
+Analyze supplied `frida-instr-trace` text files as the sole analysis input. Recover the narrowest trace-supported relation between observed input sources and output sinks. The goal is a professional data-flow report, not source reconstruction or binary decompilation.
 
-Treat trace records as the primary evidence. Use Triton and angr as first-class analysis tools when the supplied artifacts are sufficient: Triton for concrete/symbolic execution, taint propagation, AST extraction, and AST simplification; angr for CFG recovery, call graph expansion, VEX-level slicing, symbolic exploration, and path predicate recovery. Tool output refines hypotheses and candidate formulas, but verified claims still require trace rows or user-supplied I/O evidence. The main objective is to recover how input bytes, registers, memory, and state flow into outputs, comparisons, stores, returns, and emitted buffers. Recover observable behavior inside the traced RVA interval, not original source spelling or whole-program intent. Prefer multiple traces over a single trace whenever the algorithm contains loops, table lookups, path-specific branches, or lane/state permutations.
+## Strict Input Boundary
 
-Accepted trace input:
+Accepted analysis input:
 
 - UTF-8 unidbg `AssemblyCodeDumper`-style text emitted by `native\veh-injector` / `frida-rva-trace`.
+- Multiple files from the same trace family.
+- Capture metadata only when it is embedded in the trace text or encoded in the supplied trace filename/path; otherwise mark it `unknown`.
 
-Read these references before analysis:
+Forbidden analysis input:
+
+- PE/ELF/Mach-O binaries, DLLs, firmware, memory dumps, source code, PDB/debug symbols, disassembler databases, or decompiler output.
+- IDA/Ghidra/Binary Ninja/radare2 MCP analysis, binary bytes read outside trace rows, or static tables recovered from a binary.
+- Existing recovered C++/JSON/Markdown artifacts, previous hypotheses, challenge writeups, known flags, or external sample I/O not present in the trace.
+- Internet searches or third-party descriptions of the target.
+
+If forbidden artifacts exist in the workspace or are supplied alongside traces, do not inspect them. State in the report that they were intentionally excluded by the trace-only contract.
+
+The trace's instruction bytes, decoded instruction text, effective addresses, register tokens, post-register changes, external target hints, and observed control-flow sequence are the complete evidence domain.
+
+## Strict Output Boundary
+
+The only persistent artifact this skill may create is one Markdown report:
+
+```text
+<trace-family-or-module>.<start-rva>_<stop-rva>.data_flow_report.md
+```
+
+Do not create or modify:
+
+- C/C++ source files;
+- JSON manifests or evidence maps;
+- replay, parser, or extraction scripts in the workspace;
+- AST exports, CSV files, databases, patched traces, IDB comments, or auxiliary reports.
+
+Temporary in-memory computation or temporary files outside the workspace may be used when required by a tool, but they are not deliverables. The final response should link the single report and summarize its outcome without duplicating the full report.
+
+## Mandatory Report Language
+
+The Markdown report must be written in Simplified Chinese. This requirement applies to the title, metadata labels, section headings, prose, table headings and descriptions, findings, blockers, validation notes, tool-use notes, and explanatory C++ comments.
+
+Keep exact technical evidence unchanged where translation would reduce precision: file and module names, paths, hashes, RVAs/VAs, register names, instruction text, API/tool names, code identifiers, formulas, and the canonical outcome/claim enums such as `partial` and `derived_exact`. Surrounding explanations and labels must still be Chinese. Do not leave English narrative paragraphs, English section titles, or English data-flow diagrams in the deliverable.
+
+## Required References
+
+Read before analysis:
 
 - [Trace Format](references/frida-instr-trace.md)
 - [RVA Boundaries](references/rva-boundaries.md)
 - [Recovery Workflow](references/trace-recovery.md)
+- [Derived Memory Recovery](references/derived-memory-recovery.md)
+- [Data-Flow Report](references/data-flow-report.md)
 
 ## Evidence Rules
 
-- Hash every supplied trace before analysis.
-- When multiple traces are supplied, record the trace family, note which traces share the same module/RVA window, and use cross-trace agreement to separate invariant logic from path-dependent logic.
-- Hash every supplied sample binary or auxiliary artifact before analysis.
-- Record, when present: trace path, target/module path and SHA-256, sample binary path and SHA-256, selected module, module base, start RVA, inclusive stop RVA, command-line arguments, stdin transcript, trigger point, `--target-only`, and `--flush`.
-- If metadata is missing, proceed best-effort and mark fields as `unknown` rather than inventing them.
-- Use the bracketed module RVA as the selected-module offset. Treat absolute VAs as ASLR-dependent unless the trace or arithmetic from consistent module RVA/VA pairs proves a base.
-- Treat instruction bytes, decoded instruction text, register tokens, memory effective addresses, and external target hints as trace evidence.
-- Memory entries record effective address and size only. They do not prove memory byte values.
+- Hash every supplied trace before analysis and include its SHA-256 and line count in the report.
+- Use bracketed module RVA as the selected-module offset. Treat runtime VAs as ASLR-dependent.
+- Mark unavailable metadata as `unknown`; never infer capture settings without evidence.
+- Keep trace observations, exact algebraic derivations, hypotheses, unknowns, and contradictions separate.
+- Do not hard-code one observed value as a general algorithm. Scope every formula to its observed path or trace family.
 - Missing post-register tokens do not prove unchanged state.
-- No strict symbolic or complete claim may rely on memory bytes, extended registers, exact flags transitions, or API argument logs unless the user supplies separate evidence for those fields.
-- Triton/angr expressions, taint flows, and path constraints are support evidence, not proof, until they line up with trace rows or user-supplied observed I/O.
-- If multiple traces disagree, prefer the intersection of behaviors that repeat across traces for verified claims, and label the differences as path-dependent hypotheses.
-- Do not hard-code a value observed in one trace as an algorithm. If only one path is available, emit a named stub or formula hole with the observed value as a test vector, not as the implementation.
+- External target names are control-transfer hints, not API argument or return-value logs.
+- A formula is closed only when every in-slice register, memory byte, table value, and path predicate is trace-observed or exactly derived from trace evidence.
 
-## Tool Requirements
+Claim levels:
 
-Use tools when they can materially improve recovery quality:
+- `verified`: directly present in trace rows.
+- `derived_exact`: uniquely solved from trace instruction semantics, register pre/post state, byte-level propagation, or deterministic trace replay; include equation and rows.
+- `hypothesis`: plausible but depends on an unobserved value, branch, state, or non-unique inference.
+- `unknown`: no unique value or dependency can be established.
+- `contradiction`: supplied traces disagree; preserve both observations.
 
-- Use Triton for instruction-level data flow: seed symbolic variables for input bytes, mark source memory/registers tainted, replay the traced instruction path when bytes and memory evidence are available, collect ASTs for sink registers/memory, simplify expressions, and emit bit-vector formulas for output bytes or dwords.
-- Use angr for binary-wide structure: recover CFG around the RVA window, identify function boundaries and callees, lift basic blocks to VEX, recover reaching definitions/backward slices, derive path predicates for branches, and explore alternate feasible edges that are missing from a trace.
-- Use both together when possible: angr identifies candidate blocks/edges and state boundaries; Triton reconstructs precise per-instruction source-to-sink expressions on concrete traced paths.
-- If Triton or angr cannot run in the environment, ask the user to provide or install the missing tool when it is required; otherwise state the gap explicitly and continue with trace-only recovery. Do not add these tools to this project's runtime dependencies and do not pretend tool-derived evidence exists.
-- Tool scripts should be small, reproducible, and tied to the exact binary SHA-256, module base/RVA window, trace file hash, and selected input/output pair.
+## Memory-Value Recovery
 
-Required tool outputs when used:
+Memory entries print effective address and size, but many values are exactly recoverable. Follow [Derived Memory Recovery](references/derived-memory-recovery.md) before declaring a gap.
 
-- source definitions: input bytes, API read buffers, argv bytes, decrypted buffers, or state words;
-- sink definitions: compare operands, branch predicates, output stores, return values, emitted buffers, or checksum/hash words;
-- dependency map: which source bits influence each sink bit;
-- simplified formula: Triton AST or equivalent bit-vector expression reduced into readable operations;
-- validation notes: which trace rows and sample I/O confirm or contradict the formula.
+At minimum handle:
 
-## Recovery Scope
+- direct loads from destination post-state;
+- direct stores from source pre-state or immediates;
+- invertible `xor/add/sub` memory operands from destination pre/post state;
+- uniquely invertible multiplication at the correct bit width;
+- read-modify-write memory using a byte-addressed little-endian ledger;
+- prior-store/later-load propagation with overlap invalidation;
+- scalar-defined SIMD copy chains;
+- implicit `push/pop/call/ret` stack effects;
+- branch and `setcc` constraints from `cmp/test` without overclaiming complete values.
 
-Deliver one of these claim levels:
+Every recovered value recorded in the report must include method, trace row, RVA, address, size, equation, confidence, and cross-check when available.
 
-- `verified`: behavior directly tied to raw trace rows, instruction bytes, observed control flow, register observations, external target hints, or user-supplied side-effect observations.
-- `hypothesis`: inferred behavior that best explains the trace but depends on missing bytes, unobserved branches, omitted state, or AI reasoning. Label confidence and rationale.
+Report coverage counts for total memory operands, each exact recovery class, constraint-only values, unknown values, unknown values in the final slice, and cross-check pass/fail totals.
 
-Do not promote a hypothesis to verified without additional trace evidence.
+## Trace-Only Tool Policy
 
-Recover callees by default when the trace shows direct calls, resolved indirect calls, returns, tail jumps, or helper chunks that materially affect inputs, branches, stores, external calls, or return values. Emit unresolved callees as `unknown` stubs with gap entries.
+Allowed:
 
-## Data-Flow Workflow
+- text parsing, hashing, indexing, and arithmetic over trace rows;
+- Capstone decoding of instruction bytes embedded in trace rows;
+- Triton concrete/symbolic execution using only the executed instruction bytes, order, register observations, and memory values present in or derived from the trace;
+- angr/pyvex lifting, block modeling, reaching-definition analysis, and dependency checks using only instruction bytes and executed block order reconstructed from trace rows; create shellcode/blob projects in memory or temporary storage only, never a project from the target binary;
+- standard bit-vector or SMT simplification over expressions derived only from trace evidence.
 
-When one or more useful traces exist and the user also supplies a sample binary, input corpus, or observed outputs:
+Forbidden:
 
-1. Cluster traces by module, RVA interval, and observed input/output shape.
-2. Align common entry, loop, branch, call, and sink RVAs across traces.
-3. Identify sources: stdin, file reads, network reads, command-line arguments, shared memory, decrypted buffers, and persisted state.
-4. Identify sinks: comparisons, branches, writes, returns, encoders, decoders, checksums, decryptors, and output buffers.
-5. Use Triton to taint source bytes and propagate influence through registers, memory, and flags on each trace.
-6. Use angr to recover surrounding CFG shape, prune infeasible paths, and confirm which predicates control the sink.
-7. Use Triton ASTs to recover bit-level expressions from source bits to sink bits, especially for arithmetic/bitwise code, rotations, table indices, and mixed flag/data dependencies.
-8. Use angr reaching definitions or backward slicing to confirm that the Triton source set is complete and no unmodeled state source is missing.
-9. Perform backward slicing from sink to source and compare the slice across traces until the minimum data-flow chain is stable.
-10. Simplify the recovered expressions into readable C++-style formulas that explain the observed output.
-11. Validate candidate formulas against all supplied traces and any sample input/output pairs.
-12. When a trace-specific lane, branch, or table index differs, isolate the invariant subexpression and record the varying term as a path-dependent component.
-13. Replace stubs only after a formula explains at least the trace where it was observed and does not contradict other supplied traces.
+- IDA or any disassembler MCP;
+- angr project/CFG creation from a target binary or any code/data source outside trace rows;
+- reading target binary sections, imports, tables, or code not present in trace rows;
+- using static decompilation to fill trace gaps.
 
-Preferred uses:
+At the start of analysis, detect whether Capstone, Triton, and angr are available and record versions or import errors. Tool use is mandatory when detected:
 
-- Triton: taint source discovery, register/memory influence tracking, concrete-path symbolic execution, AST extraction, AST simplification, branch predicate recovery, and input-to-output bit dependency chains.
-- angr: function boundary recovery, CFG/call graph building, VEX IR inspection, reaching definitions, backward slicing, path predicate extraction, pruning impossible branches, and locating loops and dispatchers that affect the data flow.
-- Multiple traces: confirm edge coverage, derive invariant formulas, isolate path-dependent terms, and distinguish verified behavior from path-specific hypotheses.
+- If Capstone is available, decode representative and ambiguous trace instruction bytes, especially memory direction/width, implicit stack operands, and SIMD copies.
+- If Triton is available, perform concrete replay on the selected source-to-sink slice, symbolize trace-identified inputs, extract sink ASTs or taint dependencies, and compare replayed concrete state with trace observations.
+- If angr is available, lift trace-reconstructed blocks to VEX and use at least one structural analysis relevant to the slice, such as block effects, reaching definitions, dependency confirmation, or path-predicate support.
 
-## Source Independence
+Do not claim tool use merely because an import succeeded. The report must state the exact trace rows/bytes supplied to each tool, analysis performed, result, mismatches, and limitations. If a detected tool cannot process the trace because rows or state are insufficient, make a concrete attempt and document the failure point; do not silently skip it. Seed only trace-identified source bytes or registers. Tool failure never cancels report generation.
 
-If source code, debug symbols, previous reconstructions, or unprotected builds appear in the workspace, do not read them to infer behavior unless the user explicitly supplied them as recovery evidence before analysis. If source is supplied only for testing, keep it separate:
+## Workflow
 
-- do not inspect it until a candidate recovery exists;
-- do not mine it for branches, constants, or control flow;
-- do not cite it as proof;
-- use it only for black-box differential validation if the user asks.
+1. Discover only the supplied trace files; do not inspect neighboring target artifacts.
+2. Hash traces and stream-index module, RVA, VA, bytes, instruction, memory operands, register pre/post tokens, and external hints.
+3. Cluster traces by module, RVA interval, path shape, and observed source/sink shape.
+4. Establish an explicit input/output contract from trace evidence. If impossible, classify `blocked` or `no-signal` and continue to report generation.
+5. Build source, sink, call, return, branch, and loop manifests.
+6. Build the byte-addressed derived-memory ledger and coverage statistics.
+7. Backward-slice each sink to candidate sources, retaining data definitions, address calculations, path predicates, table indices, loop counters, and relevant calls.
+8. Separate unknown memory outside the slice from unknown memory that blocks the slice.
+9. Compare traces to identify invariant logic, path-specific terms, and contradictions.
+10. Detect Capstone, Triton, and angr. Use every detected tool under the trace-only policy and capture versions, inputs, results, mismatches, and limitations for the report.
+11. Use Triton sink AST/taint results and angr VEX/dependency results to refine or challenge the manual slice; trace rows remain authoritative.
+12. Express recovered semantics directly inside the Markdown report using formulas, tables, and a mandatory fenced C++ section. Every important C++ statement must have an adjacent trace-RVA comment. Do not create a separate source file.
+13. Validate every candidate relation against every supplied trace and against detected-tool replay/lift results.
+14. Write exactly one professional Simplified Chinese Markdown report, regardless of outcome.
+15. Run the report quality gate before responding.
 
-If the user supplies only a sample binary and no source, it may be used as analysis evidence together with trace-derived state, but the final claims must still separate observed rows from tool-derived hypotheses.
+## Mandatory Outcome Report
 
-## Deliverables
+Every analysis must finish with one on-disk Markdown report. Valid outcomes:
 
-When a useful trunk or hypothesis exists, deliver an actual recovered `.cpp` artifact path plus a short report containing:
+- `complete`: the selected observed path has a closed source-to-sink relation and no unresolved in-slice dependency.
+- `partial`: useful data flow was recovered, but one or more named in-slice terms remain unresolved.
+- `blocked`: parsing, evidence, or required trace state prevents meaningful recovery.
+- `no-signal`: requested module, RVA, source, sink, or dependency is absent from the trace.
 
-- trace paths and SHA-256 values;
-- selected module and RVA interval;
-- arguments/transcript/trigger metadata when known;
-- branch-edge coverage and unknown edges;
-- recovered subfunction list;
-- `verified`, `hypothesis`, and `unknown` findings;
-- `cpp_evidence_map` tying each branch, store, formula, call, return, error, exception, input source, and output sink in the C++ to trace rows or a labeled hypothesis rationale;
-- cross-trace evidence notes showing which formulas are invariant, which terms vary by path, and which trace pair(s) established the distinction;
-- tool notes for any Triton/angr assumptions, scripts used, taint sources, path predicates, ASTs, simplified formulas, source-bit to sink-bit dependencies, and validation steps;
-- gaps blocking stronger claims.
+Use [Data-Flow Report](references/data-flow-report.md) exactly. The report must include:
 
-The recovered C++ is an evidence/hypothesis artifact. Do not compile candidates, do not search for compilers, and do not claim complete behavior while branch edges, sinks, exceptions, or state domains remain uncovered.
+- outcome and claim scope;
+- trace paths, hashes, line counts, module/base/RVA metadata;
+- input/output contract;
+- path, branch, call, source, and sink inventory;
+- memory-recovery methods, equations, coverage, cross-checks, and in-slice unknowns;
+- minimal source-to-sink chain;
+- Capstone/Triton/angr availability, versions, exact trace-only use, outputs, mismatches, and limitations;
+- formulas, predicates, constants, and mandatory reduced C++ with adjacent trace-RVA comments for inputs, assignments, loops, branches, table accesses, calls, formula holes, and sinks;
+- per-trace validation and contradictions;
+- separate verified, derived-exact, hypothesis, unknown, and contradiction findings;
+- blockers and the minimum additional trace evidence required;
+- reproducibility details that do not create another persistent artifact.
+- Simplified Chinese presentation throughout, while preserving exact technical identifiers and canonical enums.
+
+Failure is not permission to omit the report. A blocked or no-signal report must show what was searched, what was attempted, the exact evidence boundary, and the smallest corrected capture or additional trace needed.
+
+## Final Quality Gate
+
+Before concluding, verify:
+
+- exactly one new persistent analysis artifact exists: the Markdown report;
+- the report is linked in the final response;
+- all evidence comes from supplied trace text;
+- no binary, IDA/MCP, source, previous recovery, or external I/O was used;
+- memory recovery statistics and representative equations are present;
+- the report contains reduced C++ and every important statement cites its trace RVA;
+- every supplied trace appears in validation;
+- every detected Capstone/Triton/angr tool was actually used and documented, or has a documented concrete failure attempt;
+- every in-slice unknown has a named blocker and minimum-next-trace requirement;
+- claims do not exceed observed path coverage;
+- report prose, headings, tables, findings, blockers, validation notes, tool notes, data-flow diagrams, and explanatory C++ comments are in Simplified Chinese;
+- no separate C++, JSON, script, or evidence-map artifact was emitted.
